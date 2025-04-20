@@ -36,16 +36,17 @@
 #include <chrono>
 #include <algorithm>
 #include <string>
+#include <filesystem>
 using namespace Tins;
+std::string port = "lo";
 short lower_level_of_susp_detection = 3;
 short upper_level_of_susp_detection = 7;
-std::string help = "do_report - create report wiht icmp dump\n
-            show_dump - print icmp dump\n
-            exit - to exit \n
-            help - to see all commands \n
-            change_port -  to change sniffing port \n
-            ";
-std::ofstream fout ("otchet.txt") ;
+int edege_of_suspicion_payload_weight = 128;
+int freqwency_of_analysing = 5000;
+std::string help = "\ndo_report - create report wiht icmp dump \nshow_dump - print icmp dump\nexit - to exit \nhelp - to see all commands \nturn_on_devmod - to disable protection against incorrect user actions (unstable operation mode!!!) \nturn_off_devmod - to turn of developer mode \nchange_lower_level_of_susp_detection - to change lower level of suspicion detection (usage : change_lower_level_of_susp_detection <int_exempl_level>) \nsettings - to see all settings \nchange_upper_level_of_susp_detection - to change upper level of suspicion detection (usage : change_upper_level_of_susp_detection <int_exempl_level>) \nto cange port - restart programm \nchint - to change interval of analysing \nimpsettings - to import settings in pingspysettings.txt \nexpsettings - to export settings file\n  ";
+
+
+std::ofstream fout ("otchet.txt");
 void do_otchet (std::vector<Packet> vt){
     
 
@@ -73,26 +74,29 @@ void do_otchet (std::vector<Packet> vt){
 }
 void show_dump (std::vector<Packet> vt){
     
-
-    for (const auto& packet : vt) {
-        // Is there an IP PDU somewhere?
-        const ICMP& icmp = packet.pdu()->rfind_pdu<ICMP>();
+    if (vt.size()>0){
+        for (const auto& packet : vt) {
+            // Is there an IP PDU somewhere?
+            const ICMP& icmp = packet.pdu()->rfind_pdu<ICMP>();
         
         
         
             // Just print timestamp's seconds and IP source address
-        std::cout << "At: " << packet.timestamp().seconds()
-             << " - " << packet.pdu()->rfind_pdu<IP>().src_addr() 
-             << std::endl; 
+            std::cout << "At: " << packet.timestamp().seconds()
+                 << " - " << packet.pdu()->rfind_pdu<IP>().src_addr() 
+                << std::endl; 
         
-        const RawPDU& raw = icmp.rfind_pdu<RawPDU>();
-        const RawPDU::payload_type& payload = raw.payload();
+            const RawPDU& raw = icmp.rfind_pdu<RawPDU>();
+            const RawPDU::payload_type& payload = raw.payload();
            
-        std::cout<<"payload:"<<std::endl;
-        for(uint8_t b: payload ){
-            std::cout << b;
+            std::cout<<"payload:"<<std::endl;
+            for(uint8_t b: payload ){
+                std::cout << b;
+            }
+            std::cout <<std::endl;
         }
-        std::cout <<std::endl;
+    }else{
+        std::cout <<"icmp dump is empty\n";
     }
 
 }
@@ -118,7 +122,7 @@ void analyzing_f(std::vector<Packet> & vt){
     int it = 0;
 
     while (true){
-        std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+        std::this_thread::sleep_for(std::chrono::milliseconds(freqwency_of_analysing));
         
         for (int i = it; i<vt.size();i++){
             vtan.push_back(vt[i]);
@@ -135,7 +139,7 @@ void analyzing_f(std::vector<Packet> & vt){
                 
                 
 
-                if (get_payload(*i).size()>128){
+                if (get_payload(*i).size()>edege_of_suspicion_payload_weight){
                     count_of_anomaly_packet++;
                 }
 
@@ -197,10 +201,61 @@ void snifing_treade (std::vector<Packet> & vt, std::string port){
     }
 } 
 
+std::vector<std::string>  get_ports_names (){
+    std::vector <NetworkInterface> interfases = NetworkInterface::all();
+    std::vector <std::string> names_of_interfases ;
+    for (int i =0 ;i<interfases.size();i++){
+        names_of_interfases.push_back(interfases[i].name());
+    }
+    return names_of_interfases;
+}
+
+void print_list (std::vector<std::string> main_list){
+    for (int i =0;i<main_list.size();i++){
+        std::cout<<main_list[i]<<std::endl;
+    }
+}
+
+void make_impression_of_settings(){
+    std::ofstream fout1 ("pingspysettings.txt");
+    fout1<<port<<" "<<lower_level_of_susp_detection <<" "<<upper_level_of_susp_detection <<" "<< edege_of_suspicion_payload_weight <<" "<< freqwency_of_analysing;
+}
+void reed_settings (){
+    std::ifstream fin1 ("pingspysettings.txt");
+    if(fin1.is_open()){
+    fin1>>port>>lower_level_of_susp_detection >>upper_level_of_susp_detection >> edege_of_suspicion_payload_weight >> freqwency_of_analysing;
+    }else {
+        std::cout<<"no settings file\n";
+    }
+}
 int main() {
+
+    std::string invalid_value_error = "Invalid value. Try again with a differend value or turn on dev mod\n";
+
+    std::vector<std::string>  ports_name = get_ports_names();
+
+    std::cout<<"plise select port from list \n";
+    print_list (ports_name);
+    
+    port = "eth0";
+    std::string temp_string;
+    while (true){
+        std::cin >> temp_string;
+        if (std::count(ports_name.begin(),ports_name.end(),temp_string)!=0){
+            port = temp_string;
+            break;
+        }else{
+            std::cout << "non-existent port"<<std::endl;
+        }
+    }
+    
+    if (std::filesystem::exists("pingspysettings.txt")){
+        reed_settings();
+    }
+
     bool dev_mode = true;
     std::vector<Packet> vt;
-    std::thread snifing(snifing_treade,std::ref(vt),"lo");
+    std::thread snifing(snifing_treade,std::ref(vt),port);
     snifing.detach();
     std::thread analyzing (analyzing_f,std::ref(vt));
     analyzing.detach();
@@ -215,14 +270,7 @@ int main() {
             show_dump(vt);
         }
         if (command == "help" ){
-            std::cout << "do_report - create report wiht icmp dump"<<std::endl
-            <<"show_dump - print icmp dump"<<std::endl<<"exit - to exit"<<std::endl<<"help - to see all commands"<<std::endl<<"change_port -  to change sniffing port"<<std::endl;
-        }
-        if ((command == "change_port")or(command == "chport")){
-            std::cout << "port has changed" <<std::endl;
-            std::cin >> command;
-            // tralalero tralala procodio porqala 
-   
+            std::cout << help<<std::endl;
         }
         if ((command == "change_lower_level_of_susp_detection") ){
             short temp = 0;
@@ -230,24 +278,66 @@ int main() {
             if ((temp < 100) and (temp>0) or dev_mode ){
                 lower_level_of_susp_detection = temp; 
             }
+            else{
+                std::cout<<invalid_value_error;
+            }
             temp = 0;
         }
         if ((command == "change_upper_level_of_susp_detection") ){
             short temp = 0;
             std::cin >> temp;
             if ((temp < 100) and (temp>5) or dev_mode ){
-                lower_level_of_susp_detection = temp; 
+                upper_level_of_susp_detection = temp; 
+            }
+            else{
+                std::cout<<invalid_value_error;
             }
             temp = 0;
         }
         if (command == "turn_on_devmod"){
             dev_mode = true;
-            std::cout << "dev mod is enabled";
+            std::cout << "dev mod is enabled\n";
         }
         if (command == "turn_off_devmod"){
             dev_mode = false;
-            std::cout << "dev mod is disabled";
+            std::cout << "dev mod is disabled\n";
         }
+        if (command == "cahge_edege_of_suspicion_payload_weight"){
+            short temp = 0;
+            std::cin >> temp;
+            if ((temp < 10000) and (temp>0) or dev_mode ){
+                edege_of_suspicion_payload_weight = temp; 
+            }else{
+                std::cout<<invalid_value_error;
+            }
+            temp = 0;
+        }
+        if (command == "chint"){
+            int temp = 0;
+            std::cin >> temp;
+            if ((temp < 100000) and (temp>0) or dev_mode ){
+                freqwency_of_analysing = temp; 
+            }else{
+                std::cout<<invalid_value_error;
+            }
+            temp = 0; 
+        }
+        if (command == "expsettings"){
+            make_impression_of_settings();
+        }
+        if (command == "impsettings"){
+            reed_settings();
+        }
+        if (command == "settings"){
+            std::cout <<"\npotr: "<<port<<std::endl;
+            std::cout <<"lower level of suspicion detection: "<< lower_level_of_susp_detection<<std::endl;
+            std::cout <<"upper level of suspicion detection: "<< upper_level_of_susp_detection<<std::endl;
+            std::cout <<"devmode : "<<dev_mode<<std::endl;
+            std::cout <<"edege of suspicion payload weight: "<< edege_of_suspicion_payload_weight<<std::endl;
+            std::cout <<"interval of analysis: "<< freqwency_of_analysing<< "(milliseconds)"<<std::endl;
+            
+        }
+        
 
     }
     

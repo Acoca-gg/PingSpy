@@ -1,0 +1,127 @@
+# PingSpy - ICMP Traffic Monitoring Tool
+
+## Overview
+PingSpy is a network monitoring tool designed to analyze ICMP traffic for suspicious activity. It captures ICMP packets on a specified network interface, analyzes them for anomalies, and provides reporting capabilities.
+
+## Features
+
+- **Real-time ICMP packet capture** - Monitors a specified network interface for all ICMP traffic
+- **Anomaly detection** - Identifies suspicious patterns in ICMP traffic including:
+  - Unusually large payloads
+  - High frequency of ICMP packets
+  - Potential ICMP tunneling (encapsulated protocols)
+- **Customizable thresholds** - Adjustable sensitivity levels for detection
+- **Reporting** - Generate detailed reports of captured ICMP traffic
+- **Interactive command interface** - Control and configure the tool while running
+
+## Installation
+
+1. Ensure you have libtins (Tins library) installed
+2. Compile with a C++11 compatible compiler:
+   ```
+   g++ -std=c++11 pingspy.cpp -o pingspy -ltins
+   ```
+
+## Usage
+
+```
+./pingspy
+```
+
+When started, the tool will:
+1. Display available network interfaces
+2. Prompt you to select an interface to monitor
+3. Begin monitoring and analyzing ICMP traffic
+
+### Interactive Commands
+
+While running, you can enter these commands:
+
+- `do_report` - Create a report with ICMP dump
+- `show_dump` - Print ICMP dump to console
+- `exit` - Exit the program
+- `help` - Show all available commands
+- `turn_on_devmod` - Enable developer mode (allows unsafe settings)
+- `turn_off_devmod` - Disable developer mode
+- `change_lower_level_of_susp_detection <level>` - Change lower suspicion threshold
+- `change_upper_level_of_susp_detection <level>` - Change upper suspicion threshold
+- `chint <milliseconds>` - Change analysis interval
+- `impsettings` - Import settings from pingspysettings.txt
+- `expsettings` - Export current settings to pingspysettings.txt
+- `settings` - View current settings
+
+## Configuration
+
+Settings can be adjusted either:
+1. Interactively while the tool is running
+2. By editing pingspysettings.txt
+3. By exporting/importing settings files
+
+Key configuration parameters:
+- `port` - Network interface to monitor
+- `lower_level_of_susp_detection` - Minimum suspicion score to trigger warning
+- `upper_level_of_susp_detection` - Score to trigger critical warning
+- `edege_of_suspicion_payload_weight` - Payload size threshold (bytes)
+- `freqwency_of_analysing` - Analysis interval in milliseconds
+
+## Detection Methods
+
+PingSpy uses several heuristics to detect suspicious activity:
+
+1. **Payload Size Analysis** - Flags ICMP packets with unusually large payloads
+2. **Packet Frequency** - Detects high rates of ICMP traffic
+3. **Protocol Encapsulation** - Identifies potential tunneling of other protocols (TCP/UDP/ICMP) within ICMP payloads
+
+## Output
+
+The tool provides three levels of alerts:
+1. **Suspicious activity** - Moderate suspicion score
+2. **Extremely suspicious activity** - High suspicion score
+3. **ICMP tunneling detected** - Evidence of protocol encapsulation
+
+Reports include:
+- Timestamps
+- Source and destination IP addresses
+- Full payload contents
+
+## Limitations
+
+- Currently only monitors ICMP traffic
+- Requires root/administrator privileges for packet capture
+- False positives possible with custom ICMP implementations
+
+## Security Considerations
+
+- Running in developer mode (`devmod`) allows unsafe configurations
+- The tool itself could be used maliciously if modified
+- Always verify alerts before taking action
+
+## License
+
+BSD 2-Clause License (See header in source code)
+ * Copyright (c) 2016, Matias Fontanini
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ * * Redistributions of source code must retain the above copyright
+ *   notice, this list of conditions and the following disclaimer.
+ * * Redistributions in binary form must reproduce the above
+ *   copyright notice, this list of conditions and the following disclaimer
+ *   in the documentation and/or other materials provided with the
+ *   distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
